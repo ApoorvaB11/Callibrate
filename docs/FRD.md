@@ -60,8 +60,8 @@ Six rules apply on every screen, so a number means the same thing wherever it ap
 | FR-02 | Time periods | Weeks run Saturday to Friday. Selectable periods: latest week, latest 13 weeks (one quarter, the default), latest 26 weeks, latest 52 weeks, and any full quarter. Trends compare with the previous equal-length period. |
 | FR-03 | Synthetic-data banner | A fixed banner on every screen: "All data is synthetic. No real doctor, rep, company or brand is shown." It cannot be dismissed. |
 | FR-04 | PDRP masking | In the manager view, prescription figures for doctors with the PDRP opt-out flag show as "Restricted" at doctor level, in tables, tooltips, drill-downs and CSV exports alike. They still count in territory and higher totals, but any group of fewer than 5 doctors that includes an opted-out doctor shows "Restricted" so the doctor's figures cannot be inferred. This is a simplified demonstration; real restrictions depend on the data licence and company policy. |
-| FR-06 | Associations, not causes | Every finding is worded as an observed association in synthetic data ("NBRx fell where rejections rose"), never as a proven cause. Charts that compare activity with outcomes carry this note. |
 | FR-05 | Metric tooltips and export | Every metric label shows its M-xx definition on hover and links to S8. Every table can be downloaded as CSV with the active filters written in its first row. |
+| FR-06 | Associations, not causes | Every finding is worded as an observed association in synthetic data ("NBRx fell where rejections rose"), never as a proven cause. Charts that compare activity with outcomes carry this note. |
 
 ## Functional requirements by screen
 
@@ -237,7 +237,7 @@ The generator builds all eight data sets from one configuration file and one ran
 | FR-91 | Independent of the app's logic: prescribing comes from hidden doctor traits (practice size, diabetes patient load, brand affinity, plan mix), a call effect with diminishing returns, and random noise. It never uses the priority score or lapsing rule formulas. |
 | FR-92 | Calibrated: specialty mix, decile skew and brand shares land within 2 percentage points of their targets; the generator writes a calibration report. |
 | FR-93 | Safe identifiers: doctor IDs (called `synthetic_prescriber_id` on claims) are 10 digits starting with 1 or 2 and deliberately fail the NPI check digit; the data dictionary labels them synthetic, and they must never stand in for real NPIs in any integration. Names are generated; ZIP codes are real for geography, but no street addresses exist. |
-| FR-94 | Aggregates only: public files are read, reduced to distributions, and their identifiers discarded. Raw public files are never committed to the repository. |
+| FR-94 | Aggregates only: the generator never reads a file containing real identifiers. Any analysis of public files (planned for CMS Part D and NPPES) runs separately and produces aggregate targets only. Raw public files are never committed to the repository. |
 | FR-95 | Answer key: every planted scenario is documented in a file in the repository, with its location, timing and expected signal. |
 | FR-96 | Realistic rejections: besides prior authorisation (NCPDP code 75), claims also reject for plan limitations exceeded (76), patient not covered (65) and refill too soon (79), each resolved by a paid resubmission. |
 
