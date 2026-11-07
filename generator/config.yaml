@@ -1,0 +1,122 @@
+# Callibrate synthetic data configuration
+# Every value here is a modelling choice, documented in docs/DATA_SPEC.md.
+# Change a value, re-run `python generator/generate.py`, and the whole data set rebuilds.
+
+seed: 20261107
+
+calendar:
+  first_week_start: "2024-11-02"   # a Saturday; weeks run Saturday to Friday
+  weeks: 104                       # weeks of output data
+  warmup_weeks: 52                 # simulated before week 1 so patients already on therapy exist
+
+universe:
+  doctors: 10000
+  zero_potential_share: 0.08       # doctors who write no GLP-1 class prescriptions (decile 0)
+  pdrp_optout_share: 0.03          # doctors opted out under the AMA PDRP (assumption)
+
+# Share of GLP-1 class PRESCRIBING VOLUME by specialty (BRD realism defaults).
+# Doctor counts are derived from these and the relative volume per doctor below.
+specialties:
+  family_medicine:    {taxonomy: "207Q00000X", volume_share: 0.28, relative_volume: 1.0, label: "Family medicine"}
+  internal_medicine:  {taxonomy: "207R00000X", volume_share: 0.22, relative_volume: 1.1, label: "Internal medicine"}
+  nurse_practitioner: {taxonomy: "363L00000X", volume_share: 0.17, relative_volume: 0.8, label: "Nurse practitioner"}
+  physician_assistant: {taxonomy: "363A00000X", volume_share: 0.08, relative_volume: 0.7, label: "Physician assistant"}
+  endocrinology:      {taxonomy: "207RE0101X", volume_share: 0.12, relative_volume: 3.0, label: "Endocrinology"}
+  cardiology:         {taxonomy: "207RC0000X", volume_share: 0.06, relative_volume: 0.6, label: "Cardiology"}
+  nephrology:         {taxonomy: "207RN0300X", volume_share: 0.03, relative_volume: 0.8, label: "Nephrology"}
+  other:              {taxonomy: "208D00000X", volume_share: 0.04, relative_volume: 0.4, label: "Other"}
+
+prescribing:
+  mean_new_starts_per_doctor_week: 0.30   # market-wide new GLP-1 patients per prescribing doctor per week
+  volume_spread_sigma: 0.50               # lognormal spread of practice volume (drives decile skew)
+  never_filled_share: 0.22                # new prescriptions never taken to the pharmacy
+  fill_interval_weeks: 4                  # 28-day supply
+  renewal_every_n_fills: 12               # a new prescription number roughly yearly
+  refill_dropout_per_fill:                # chance a patient stops after each fill
+    medicare: 0.048
+    commercial: 0.036
+    medicaid: 0.060
+  call_effect: 0.35                       # Glyvexa log-odds lift per log(1 + calls in prior 8 weeks)
+
+# Fictional brands. base_preference sets new-patient choice before calls and plan effects.
+brands:
+  glyvexa:  {label: "Glyvexa",  form: "once-weekly injectable", ours: true,  base_preference: 0.20, ndc11: "99901000101"}
+  sucrelo:  {label: "Sucrelo",  form: "once-weekly injectable", ours: false, base_preference: 0.42, ndc11: "99902000201"}
+  metaryn:  {label: "Metaryn",  form: "daily injectable",       ours: false, base_preference: 0.12, ndc11: "99903000301"}
+  orvalis:  {label: "Orvalis",  form: "daily tablet",           ours: false, base_preference: 0.26, ndc11: "99904000401"}
+
+# Calibration targets checked in the calibration report (percentage points tolerance)
+targets:
+  tolerance_pts: 2.0
+  glyvexa_nbrx_share: 0.28
+  prescribers_in_deciles_8_10: 0.12
+
+geography:
+  regions:
+    southeast:
+      label: "Southeast"
+      districts:
+        fl_north: {label: "Florida North", states: ["FL"], lat_min: 28.6}
+        fl_south: {label: "Florida South", states: ["FL"], lat_max: 28.6}
+        georgia:  {label: "Georgia",       states: ["GA"]}
+    gulf:
+      label: "Gulf"
+      districts:
+        al_ms:     {label: "Alabama-Mississippi", states: ["AL", "MS"]}
+        louisiana: {label: "Louisiana",           states: ["LA"]}
+  territories_per_district: 8
+
+field_force:
+  field_days_per_week: 5
+  in_person_calls_per_day: 7
+  in_person_share_of_calls: 0.82      # remote calls make up the rest
+  targets_per_rep: {A: 25, B: 55, C: 70}
+  planned_calls_per_quarter: {A: 6, B: 3, C: 1}
+  rep_execution_range: [0.72, 0.95]       # share of planned calls each rep actually makes (open-access doctors)
+  access_tiers: {open: 0.60, limited: 0.32, no_see: 0.08}
+  access_execution: {open: 1.0, limited: 0.70, no_see: 0.15}
+  channel_by_access:                      # share of calls in person vs remote
+    open:    {in_person: 0.92, remote: 0.08}
+    limited: {in_person: 0.40, remote: 0.60}
+    no_see:  {in_person: 0.00, remote: 1.00}
+  non_target_call_share: 0.08             # calls spent off the call plan
+  emails_per_target_per_quarter: {open: 0.6, limited: 2.0, no_see: 3.0}
+
+payers:
+  line_of_business_mix: {medicare: 0.45, commercial: 0.40, medicaid: 0.15}
+  plans:
+    - {plan_id: "PL01", name: "Summit Medicare Rx",       lob: medicare,   region: all,       weight: 0.5}
+    - {plan_id: "PL02", name: "Palmetto Senior Advantage", lob: medicare,  region: southeast, weight: 0.5}
+    - {plan_id: "PL03", name: "Bayou Senior Advantage",   lob: medicare,   region: gulf,      weight: 0.5}
+    - {plan_id: "PL04", name: "Crestline Commercial",     lob: commercial, region: all,       weight: 0.55}
+    - {plan_id: "PL05", name: "Harborview Health",        lob: commercial, region: all,       weight: 0.45}
+    - {plan_id: "PL06", name: "Coastal Medicaid Plan",    lob: medicaid,   region: southeast, weight: 1.0}
+    - {plan_id: "PL07", name: "Delta Medicaid Plan",      lob: medicaid,   region: gulf,      weight: 1.0}
+  # First-fill rejection probability and what happens after a rejection, by formulary status
+  status_rules:
+    preferred:         {reject: 0.00, approved_later: 0.00, abandon: 0.00, switch: 0.00}
+    preferred_pa:      {reject: 0.45, approved_later: 0.85, abandon: 0.10, switch: 0.05}
+    non_preferred_pa:  {reject: 0.85, approved_later: 0.35, abandon: 0.30, switch: 0.35}
+
+scenarios:
+  p1_formulary_shock:
+    plan_id: "PL03"
+    brand: glyvexa
+    week: 88                    # week starting 4 July 2026: first full week after the plan's 1 July mid-year formulary update
+    from_status: preferred
+    to_status: non_preferred_pa
+  p2_over_calling:
+    territories: 3
+    low_potential_call_share: 0.30
+  p3_vacancy:
+    weeks: [40, 47]
+  p4_restricted_cluster:
+    counties: ["Fulton County", "DeKalb County", "Cobb County", "Gwinnett County"]
+    state: "GA"
+    endocrinology_no_see_share: 0.70
+  p5_lapsing:
+    active_writer_min_nbrx_26w: 3     # population for the lapsing flag
+    share_of_active_writers: 0.08
+    lapse_week_range: [40, 96]
+    causes: {competitor_push: 0.40, call_gap: 0.30, silent: 0.30}
+    post_lapse_multiplier: 0.30

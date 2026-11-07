@@ -1,0 +1,7 @@
+duckdb
+numpy
+pandas
+pyyaml
+scikit-learn
+faker
+zipcodes

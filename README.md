@@ -22,18 +22,29 @@ The setting is a fictional once-weekly GLP-1-class brand for type 2 diabetes in 
 | --- | --- |
 | [Business Requirements (BRD)](docs/BRD.md) | Problem, scope, personas, objectives, business requirements, data and compliance rules |
 | [Functional Requirements (FRD)](docs/FRD.md) | Screens, metric formulas, priority score, lapsing model, data generation, acceptance tests |
+| [Data specification](docs/DATA_SPEC.md) | What the synthetic data contains and how it is generated |
+| [Planted scenario answer key](docs/ANSWER_KEY.md) | The five patterns hidden in the data, and where to find them |
+| [Calibration report](docs/CALIBRATION.md) | How close the data lands to its targets, regenerated with every build |
 
 ## Build progress
 
 - [x] Research: market need, existing products, public data sources
 - [x] Business Requirements Document
 - [x] Functional Requirements Document
-- [ ] Synthetic data specification and planted-scenario answer key
-- [ ] Data generator
+- [x] Synthetic data specification and planted-scenario answer key
+- [x] Data generator, calibration checks and report
 - [ ] SQL metric layer and reconciliation checks
 - [ ] App screens (8)
 - [ ] Priority score and lapsing model
 - [ ] Limitations page, demo script and deployment
+
+## Rebuild the data
+
+```bash
+pip install duckdb numpy pandas pyyaml scikit-learn faker zipcodes
+python generator/generate.py     # about 30 seconds; writes data/callibrate.duckdb
+python generator/calibrate.py    # checks the data and rewrites docs/CALIBRATION.md
+```
 
 ## How data is handled
 

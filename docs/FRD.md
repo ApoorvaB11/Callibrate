@@ -188,7 +188,7 @@ The flag predicts which active Glyvexa prescribers will sharply cut new prescrib
 
 | Element | Specification |
 | --- | --- |
-| Population | Active writers: doctors with 5 or more Glyvexa NBRx in the previous 26 weeks |
+| Population | Active writers: doctors with 3 or more Glyvexa NBRx in the previous 26 weeks |
 | Outcome (what "lapse" means) | Glyvexa NBRx in the next 13 weeks falls 50% or more against the previous 13 weeks |
 | Prediction point | Each week, using only data available up to that week |
 | Rule baseline | Flag when Glyvexa NBRx in the last 8 weeks is down 30% or more against the prior 8 weeks and the doctor's competitor NBRx is flat or rising |
@@ -217,7 +217,7 @@ The generator builds all eight data sets from one configuration file and one ran
 
 | ID | Scenario | What a user should find | Where |
 | --- | --- | --- | --- |
-| P1 | Formulary shock: one health plan adds prior authorisation for Glyvexa in one region at week 70 | Code 75 rejections jump; about 30% of blocked patients abandon and 35% switch; NBRx falls faster than TRx while calls hold steady | S7, S1 alert |
+| P1 | Formulary shock: one health plan moves Glyvexa to non-preferred with prior authorisation in one region from week 88 (4 July 2026) | Code 75 rejections jump; about 30% of blocked patients abandon and 35% switch; NBRx falls faster than TRx while calls hold steady | S7, S1 alert |
 | P2 | Over-calling: three territories spend about 30% of calls on decile 0–4 doctors near the rep's base | High low-potential call share in those territories | S2, S1 |
 | P3 | Vacancy: one territory has no rep for 8 weeks | Reach drops below 70%, then recovers | S3, S4 |
 | P4 | Restricted cluster: no-see endocrinologists concentrated in one metro area | Low in-person reach, higher remote share | S3 |
