@@ -1,6 +1,6 @@
 # Callibrate — Business Requirements Document
 
-Last updated 7 Nov 2026 · Product owner: Apoorva Bhardwaj
+Last updated 7 Nov 2026 (revised after independent review) · Product owner: Apoorva Bhardwaj
 
 ## Summary
 
@@ -126,31 +126,31 @@ Each version 1 feature has one business requirement and testable acceptance crit
 | BR-04 | A4 Prescription trends | Track the brand's prescriptions and share over time | Weekly TRx, NRx, NBRx (counted from paid pharmacy claims) and market share are shown for the brand and its three fictional competitors, by territory |
 | BR-05 | A5 Coverage map | See where coverage of high-value doctors is thin | Territories are shaded by reach to high-decile doctors; those below 70% reach to decile 8–10 doctors are flagged (threshold configurable) |
 | BR-06 | B1 Misallocation quadrant | Find calls spent on low-potential doctors and high-potential doctors left uncalled | Doctors are placed on potential against calls received; both problem quadrants list their doctors with counts and share of calls |
-| BR-07 | B2 Access tiers | Plan for doctors who limit or refuse rep visits | Every doctor carries an access tier; key views split by tier; restricted doctors show remote and email contact separately |
+| BR-07 | B2 Access tiers | Plan for doctors who limit or refuse rep visits | Every doctor carries an access tier; key views split by tier; reach is shown in person, remote and across all channels; contact options are illustrative and subject to the doctor's consent |
 | BR-08 | B3 Planted story | Give the dashboard a realistic problem to diagnose | The data contains at least one documented scenario: a region where calls hold steady but NBRx falls after a health plan adds prior authorisation, visible as code 75 rejections in the pharmacy claims. A written answer key exists, and the cause is reachable in five steps or fewer |
-| BR-09 | B4 Activity against outcome | Judge territories on results, not just effort | Calls and NBRx appear side by side per territory, and territories with high effort but falling outcome are highlighted |
-| BR-10 | C1 Priority score | Get a weekly, explainable ranking of which doctors to see next | The score combines stated drivers (for example potential, NBRx trend, share gap, access tier, days since last call); each doctor shows its top reasons in plain English; the analyst can change weights and the ranking updates; no hidden inputs |
-| BR-11 | C3 Lapsing flag | Spot doctors likely to reduce brand prescribing before it shows in totals | A rule-based baseline and a simple statistical model (logistic regression) are compared on a planted pattern with added noise; precision, recall and the confusion matrix are shown; every output is labelled synthetic and illustrative; the main drivers of each flag are listed |
-| BR-12 | D1 Realistic synthetic data | Make the data look like the real US market without containing real people | Specialty mix follows public NPI registry patterns and prescribing skew follows Medicare Part D patterns for the GLP-1 class; no real names or NPIs appear |
-| BR-13 | D2 Compliance by design | Show awareness of pharma data rules | Every page shows a synthetic-data banner; doctor IDs cannot be mistaken for real NPIs; doctors opted out under the AMA PDRP are hidden from the manager view |
+| BR-09 | B4 Activity against outcome | Judge territories on results, not just effort | Calls and NBRx appear side by side per territory, territories with high effort but falling outcome are highlighted, and an analyst panel suggests what to investigate next |
+| BR-10 | C1 Priority score | Get a weekly, explainable ranking of which doctors to see next | The score combines stated opportunity drivers (potential, headroom, NBRx trend, time since last call); access is shown beside the score as a constraint, never as a penalty; each doctor shows its top reasons in plain English; the analyst can change weights, see how the ranking shifts and compare it with simpler rankings; no hidden inputs |
+| BR-11 | C3 Lapsing flag | Give the analyst a manageable list of doctors whose brand prescribing may be about to fall | A rule-based baseline and a simple statistical model (logistic regression) are compared in a rolling back-test with no use of future data; planted lapses are mixed with decoys and noise; precision, recall, PR-AUC and top-10% precision are shown; every output is labelled synthetic and illustrative; the main drivers of each flag are listed |
+| BR-12 | D1 Realistic synthetic data | Make the data look like the real US market without containing real people | Specialty mix and prescribing concentration follow published aggregates and stated assumptions, with a planned check against Medicare Part D and NPI registry files; a calibration report shows every target; no real names or NPIs appear |
+| BR-13 | D2 Compliance by design | Show awareness of pharma data rules | Every page shows a synthetic-data banner; doctor IDs cannot be mistaken for real NPIs; doctors opted out under the AMA PDRP have their prescribing hidden from the manager view, including exports and small groups; findings are worded as associations, not causes |
 | BR-14 | D3 Definitions and reconciliation | Trust every number on screen | Every metric has a written definition and formula; territory totals add up to district, region and national totals; a limitations page states what the data cannot prove |
 
 ## Data, compliance and honesty requirements
 
-Callibrate uses eight synthetic data sets that mirror what a real brand team receives. The project generates them itself, because no credible, licensed rep-activity data set exists publicly, and calibrates them on free US government data.
+Callibrate uses eight synthetic data sets that mirror what a real brand team receives. The project generates them itself, because no credible, licensed rep-activity data set exists publicly. Version 1 calibrates them to published aggregates and stated assumptions; deriving the targets directly from free US government files is the next calibration step (see the provenance register).
 
 | Data set | One row per | Key fields | Calibrated on |
 | --- | --- | --- | --- |
-| Doctor master | Doctor | Synthetic ID, specialty taxonomy code, ZIP, territory, decile, access tier, PDRP opt-out flag | Specialty mix and MD/NP/PA ratio from the [NPPES NPI files](https://download.cms.gov/nppes/NPI_Files.html) and NUCC taxonomy codes |
-| Pharmacy claims | Claim | Prescriber, product, fill date, new or refill, days' supply, plan, formulary status, paid or rejected, reject code (75 = prior authorisation required) | NCPDP pharmacy-claim vocabulary; prescribing skew and brand mix from [Medicare Part D Prescribers by Provider and Drug](https://catalog.data.gov/dataset/medicare-part-d-prescribers-by-provider-and-drug) |
+| Doctor master | Doctor | Synthetic ID, specialty taxonomy code, ZIP, territory, decile, access tier, PDRP opt-out flag | Specialty volume mix from published GLP-1 prescribing by provider type; NUCC taxonomy codes; [NPPES NPI files](https://download.cms.gov/nppes/NPI_Files.html) planned for the NP/PA ratio |
+| Pharmacy claims | Claim | Synthetic prescriber ID, product, fill date, new or refill, days' supply, plan, formulary status, paid or rejected, NCPDP reject code (75 prior authorisation required; also 76, 65 and 79) | NCPDP pharmacy-claim vocabulary; prescribing concentration set by assumption (about 12% of prescribers in deciles 8–10), to be checked against [Medicare Part D Prescribers by Provider and Drug](https://catalog.data.gov/dataset/medicare-part-d-prescribers-by-provider-and-drug) |
 | Weekly prescriptions | Doctor, brand and week (Saturday to Friday) | TRx, NRx, NBRx, counted from paid claims | Week and metric definitions from the [IQVIA Xponent product description](https://www.iqvia.com/-/media/iqvia/pdfs/us/brochures/iqvia-xponent-xpo--xponent-family-product-description-brochure-2026.pdf) |
 | Calls | Interaction | Rep, doctor, date, channel (in person, remote, email) | Realism defaults below |
 | Call plan | Doctor and quarter | Segment (A, B, C), planned frequency | Realism defaults below |
-| Alignment | ZIP code | Territory, district, region | [HUD-USPS ZIP crosswalk](https://www.huduser.gov/PORTAL/node/6572); territory demand weighted by [CDC PLACES](https://catalog.data.gov/dataset/places-zcta-data-gis-friendly-format-2025-release-ace75) diabetes prevalence |
+| Alignment | ZIP code | Territory, district, region | Real ZIP codes and coordinates (open `zipcodes` list, built from USPS data); [CDC PLACES](https://catalog.data.gov/dataset/places-zcta-data-gis-friendly-format-2025-release-ace75) diabetes prevalence planned for weighting territory demand |
 | Rep roster | Rep and territory | Rep, territory, start and end dates | Realism defaults below |
 | Payer coverage | Health plan, region and brand | Tier, prior authorisation, step therapy, quantity limit, effective date | Structure and patterns of the [CMS Part D formulary files](https://www.cms.gov/Research-Statistics-Data-and-Systems/Files-for-Order/NonIdentifiableDataFiles/PrescriptionDrugPlanFormularyPharmacyNetworkandPricingInformationFiles); state Medicaid volume from [Medicaid State Drug Utilization Data](https://catalog.data.gov/dataset/state-drug-utilization-data-2025) |
 
-**How prescriptions are built.** As in industry audits, only paid claims count towards prescriptions. When a plan adds prior authorisation, first fills start rejecting with code 75. Some of those patients abandon therapy or switch to a competitor, so NBRx falls faster than TRx while existing patients keep refilling. This is the mechanism behind the planted story in BR-08.
+**How prescriptions are built.** As in industry audits, only paid claims count towards prescriptions; Callibrate's TRx, NRx and NBRx are therefore synthetic paid-claim counts and proxies, not licensed audit measures. When a plan adds prior authorisation, first fills start rejecting with code 75. Some of those patients abandon therapy or switch to a competitor, so NBRx falls faster than TRx while existing patients keep refilling. This is the mechanism behind the planted story in BR-08.
 
 **Realism defaults.** Public benchmarks for field-sales operations are thin and mostly vendor-sourced, so these values are modelling choices, labelled illustrative in the app.
 
@@ -164,18 +164,34 @@ Callibrate uses eight synthetic data sets that mirror what a real brand team rec
 | Access | About 40% of targets limited or restricted; 20% of those see no reps | US access at 45% in 2024 ([Veeva Pulse](https://veeva.com/wp-content/uploads/2024/05/Veeva-Pulse-Report-Top-Insights-1Q24.pdf)) |
 | Channel mix | 55% in person, 15% remote, 30% email | Doctor preference survey, 2025 ([IQVIA](https://www.iqvia.com/locations/emea/blogs/2025/11/from-preference-to-practice)) |
 | Prescriber mix | Primary care and internal medicine 50%, NPs and PAs 25%, endocrinology 12%, other 13% | GLP-1 prescribing by provider type ([ISPOR 2025](https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2025/poster-session-1/assessing-prescribing-trends-for-select-glucagon-like-peptide-receptor-agonists-glp-1s-by-patient-demographics-providers-and-indication)) |
-| First-fill abandonment | About 30% | Published range of 27–40% |
-| 12-month persistence | About 60% (commercial 65%, Medicare 55%) | Once-weekly GLP-1 claims study ([PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC8099966/), manufacturer-funded) |
+| New prescriptions never filled | About 29%: 25% never taken to a pharmacy, plus about 4% abandoned after a rejection | Published range of 27–40% of new GLP-1 prescriptions unfilled |
+| Payer mix | 45% Medicare, 40% commercial, 15% Medicaid | A configurable fictional-market assumption, not a validated benchmark for type 2 diabetes |
+| 12-month persistence | About 60% (commercial 65%, Medicare 55%); cohort rule in FRD M-18 | Once-weekly GLP-1 claims study ([PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC8099966/), manufacturer-funded) |
 | Prior authorisation | 70% of Medicare and 40% of commercial scripts | Near-universal in Part D plans ([TechTarget](https://www.techtarget.com/healthcarepayers/news/366631930/Nearly-all-Medicare-Part-D-plans-require-prior-auth-for-GLP-1s)) |
 | Formulary changes | Twice a year, January and July | PBM annual and mid-year cycle ([AIS Health](https://aishealth.mmitnetwork.com/blogs/spotlight-on-market-access/humira-diabetes-drugs-are-among-therapies-excluded-by-big-three-pbms-in-2025)) |
+
+**Data provenance register**
+
+| Source | Used for | Status in version 1 | Limitation |
+| --- | --- | --- | --- |
+| Published GLP-1 prescribing by provider type (ISPOR 2025) | Specialty volume mix | Used | One study; includes obesity prescribing |
+| Vendor and survey benchmarks (Veeva, IQVIA, PharmExec) | Field-force realism defaults | Used | Mostly vendor-sourced and low confidence |
+| Published claims and access studies | Persistence, unfilled prescriptions, prior authorisation rates | Used | Partly manufacturer-funded or obesity-focused |
+| NUCC taxonomy codes | Specialty codes on the doctor master | Used | Codes only |
+| USPS-derived ZIP list (`zipcodes` package) | Real ZIPs, cities, counties and coordinates | Used | ZIP grouping is not a real territory design |
+| CMS Part D formulary files | Structure of formulary status (tier, prior authorisation, step therapy) | Structure mirrored | Says nothing about a fictional brand's coverage |
+| CMS Medicare Part D prescriber data | Checking prescribing concentration and specialty mix | Planned | Medicare Part D only; hides prescribers with fewer than 11 claims |
+| NPPES | Checking the NP/PA share of prescribers | Planned | A provider registry, not a prescribing-volume source |
+| CDC PLACES | Weighting territory demand by diabetes prevalence | Planned | Area-level estimate; not a doctor-level predictor |
 
 **Compliance rules**
 
 - No real doctor, rep, company or brand appears anywhere in the app or its data.
-- Public files that name real providers (NPPES, Part D) are used only to compute aggregate distributions. Identifiers are discarded, and raw files are not stored in the project repository.
-- Doctor IDs follow the NPI format but deliberately fail its check digit, so they cannot be mistaken for real NPIs.
+- Public files that name real providers (NPPES, Part D) are used only to compute aggregate distributions, whose values are written into the generator's configuration. The generator itself never reads a file containing real identifiers, and no raw public file is stored in the repository.
+- Doctor IDs follow the NPI format but deliberately fail its check digit, are labelled synthetic in every data dictionary, and must never stand in for real NPIs.
+- Contact options for limited-access and no-see doctors are illustrative only; any real channel depends on the doctor's documented consent and company policy.
 - No real name or identifier ever reaches an AI component.
-- A PDRP opt-out flag mirrors the [AMA Physician Data Restriction Program](https://www.ama-assn.org/about/ama-physician-professional-data/ama-physician-data-restriction-program), hiding opted-out doctors' prescribing from manager views.
+- A PDRP opt-out flag mirrors the [AMA Physician Data Restriction Program](https://www.ama-assn.org/about/ama-physician-professional-data/ama-physician-data-restriction-program), hiding opted-out doctors' prescribing from manager views, exports and small groups. It is a simplified demonstration; real restrictions depend on the data licence and company policy.
 - NCPDP, X12 and IQVIA formats are licensed, so Callibrate mimics their vocabulary and structure only and claims no conformance.
 - Payments to doctors (Sunshine Act, Open Payments) are not modelled; the limitations page says so.
 
@@ -210,6 +226,8 @@ The biggest risk is overclaiming what synthetic data proves; most mitigations ex
 | CV wording implies hands-on coding | Interviewer asks to walk through code | Describe the role as product owner with AI-assisted build; be ready to defend metrics and logic, not syntax |
 | Placeholder names clash with real trademarks | Looks like real company data | Check names before publishing |
 | Scope creep from later-phase ideas | Version 1 slips | Later-phase features stay out until version 1 ships |
+| Metric definitions read as vendor-standard | An interviewer challenges NRx, NBRx or decile definitions | Label TRx, NRx and NBRx as paid-claim proxies and document every rule in the FRD |
+| Associations read as causes | Overclaiming in a demo | Word findings as associations in synthetic data; recommend investigations, not sales actions |
 
 ## Future roadmap
 
@@ -232,14 +250,15 @@ These features are held back so version 1 ships focused; each builds on the vers
 | Call (detail) | One rep interaction with a doctor about a product |
 | Call plan | The list of target doctors and how often each should be seen in a cycle |
 | Call-plan adherence | Planned calls actually made, as a share of planned calls |
-| Decile | Doctors ranked into 10 groups by prescribing volume; decile 10 holds the biggest prescribers |
+| Decile | Doctors ranked into 10 groups by prescribing volume; decile 10 holds the biggest prescribers. Callibrate uses volume-weighted deciles (each holds about 10% of volume) |
 | Formulary status | Whether a health plan covers a drug as preferred, non-preferred or only with prior authorisation |
 | Frequency | How many times a reached doctor was called in a cycle |
 | HCP | Healthcare professional; here, any doctor, NP or PA who prescribes |
 | Logistic regression | A simple statistical model that estimates the probability of a yes/no outcome, such as a doctor lapsing |
-| NBRx | New-to-brand prescriptions: patients starting or switching to the brand |
+| NBRx | New-to-brand prescriptions: prescriptions for patients starting, switching to, adding or restarting the brand. Counts prescriptions, not unique patients; definitions vary by vendor |
+| Persistence | Share of new patients still filling the brand after a set period, here 12 months |
 | NPI | The unique 10-digit US ID for every healthcare provider |
-| NRx | New prescriptions, excluding refills |
+| NRx | New prescriptions (first fill of a new prescription number), excluding refills |
 | PDRP | AMA programme that lets doctors stop reps seeing their individual prescribing data |
 | Reach | Share of target doctors called at least once in a cycle |
 | SFE | Sales force effectiveness: making field effort land on the right doctors |

@@ -102,46 +102,77 @@ acc = dict(q("SELECT access_tier, COUNT(*) / 10000 FROM doctors GROUP BY 1"))
 check("Access tiers: open / limited / no-see", "60% / 32% / 8%",
       f"{pct(acc['open'])} / {pct(acc['limited'])} / {pct(acc['no_see'])}")
 
-# --- patients
+# --- patients: 12-month persistence (cohort rule documented in docs/FRD.md, M-18)
 pers = one("""
-    WITH starts AS (SELECT patient_id, brand, MIN(week) w0 FROM pharmacy_claims
-                    WHERE response_status = 'P' AND fill_number = 0 GROUP BY 1, 2 HAVING MIN(week) BETWEEN -40 AND 40)
-    SELECT AVG(CASE WHEN EXISTS (SELECT 1 FROM pharmacy_claims c WHERE c.patient_id = s.patient_id
-               AND c.brand = s.brand AND c.response_status = 'P' AND c.week BETWEEN s.w0 + 48 AND s.w0 + 56) THEN 1 ELSE 0 END)
-    FROM starts s""")
-check("12-month persistence", "About 60%", pct(pers))
+    WITH paid AS (SELECT patient_id, brand, week,
+                         LAG(week) OVER (PARTITION BY patient_id, brand ORDER BY week) AS prev
+                  FROM pharmacy_claims WHERE response_status = 'P'),
+    idx AS (SELECT patient_id, brand, week AS w0 FROM paid
+            WHERE (prev IS NULL OR week - prev > 52) AND week BETWEEN 1 AND 52),
+    f AS (SELECT i.patient_id, i.brand, i.w0, p.week,
+                 p.week - LAG(p.week) OVER (PARTITION BY i.patient_id, i.brand, i.w0 ORDER BY p.week) AS gap
+          FROM idx i JOIN paid p USING (patient_id, brand) WHERE p.week BETWEEN i.w0 AND i.w0 + 52),
+    s AS (SELECT patient_id, brand, w0, MAX(week) AS last_w, COALESCE(MAX(gap), 0) AS max_gap FROM f GROUP BY ALL)
+    SELECT AVG(CASE WHEN last_w >= w0 + 48 AND max_gap <= 13 THEN 1 ELSE 0 END) FROM s""")
+check("12-month persistence (new-to-brand starts in weeks 1–52)", "About 60%", pct(pers))
+
+# --- decile construction
+dv = q("SELECT decile, SUM(trx) / (SELECT SUM(trx) FROM dec) FROM dec WHERE decile > 0 GROUP BY 1")
+lo_, hi_ = min(v for _, v in dv), max(v for _, v in dv)
+check("Each decile's share of market volume", "9–11%", f"{pct(lo_)}–{pct(hi_)}", lo_ >= 0.09 and hi_ <= 0.11)
 
 # --- identifiers
 ids = [r[0] for r in q("SELECT doctor_id FROM doctors")]
 valid = sum(is_valid_npi(i) for i in ids)
-check("Doctor IDs that pass the NPI check digit", "0", f"{valid}", valid == 0)
+check("Synthetic prescriber IDs that pass the NPI check digit", "0", f"{valid}", valid == 0)
+
+# --- new-prescription funnel and reject reasons
+fn = dict(q("SELECT stage, prescriptions FROM generation_funnel"))
+w = fn["written"]
+funnel = [
+    ("New prescriptions written (weeks 1–104)", f"{w:,}", "100%"),
+    ("Never taken to a pharmacy (invisible in claims data)", f"{fn['never_presented']:,}", pct(fn["never_presented"] / w)),
+    ("Presented at a pharmacy", f"{fn['presented']:,}", pct(fn["presented"] / w)),
+    ("Rejected at first fill for prior authorisation (code 75)", f"{fn['rejected_pa']:,}", pct(fn["rejected_pa"] / w)),
+    ("then approved and paid", f"{fn['approved_after_pa']:,}", pct(fn["approved_after_pa"] / w)),
+    ("then abandoned (no paid claim)", f"{fn['abandoned_after_pa']:,}", pct(fn["abandoned_after_pa"] / w)),
+    ("then switched to a competitor", f"{fn['switched_after_pa']:,}", pct(fn["switched_after_pa"] / w)),
+]
+unfilled = (fn["never_presented"] + fn["abandoned_after_pa"]) / w
+check("Written prescriptions that never become a paid fill of any brand", "27–40% (published range)", pct(unfilled),
+      0.27 <= unfilled <= 0.40)
+codes = q("""SELECT reject_code, COUNT(*), COUNT(*) / SUM(COUNT(*)) OVER () FROM pharmacy_claims
+             WHERE response_status = 'R' AND week >= 1 GROUP BY 1 ORDER BY 2 DESC""")
+code_label = {"75": "Prior authorisation required", "76": "Plan limitations exceeded",
+              "65": "Patient not covered", "79": "Refill too soon"}
 
 # --- planted scenarios
 facts = dict(((s, f), v) for s, f, v in q("SELECT * FROM scenario_facts"))
 heavy = facts[("P1", "heavy_territories")].split(", ")
 scen = []
-p1 = q("""
-    SELECT CASE WHEN week < 88 THEN 'before' ELSE 'after' END AS period,
-           COUNT(*) FILTER (WHERE response_status = 'R') * 1.0 / COUNT(*) AS reject_rate
-    FROM pharmacy_claims WHERE plan_id = 'PL03' AND brand = 'glyvexa' AND fill_number = 0 AND week BETWEEN 72 AND 104
-    GROUP BY 1 ORDER BY 1 DESC""")
-p1d = dict(p1)
-nb_change = q("""
-    WITH t AS (SELECT d.territory_id IN (SELECT UNNEST(?)) AS heavy, r.week, r.nbrx, r.trx
+p1 = dict(q("""
+    SELECT CASE WHEN week < 88 THEN 'before' ELSE 'after' END,
+           COUNT(*) FILTER (WHERE reject_code = '75') * 1.0 / COUNT(*)
+    FROM pharmacy_claims WHERE plan_id = 'PL03' AND brand = 'glyvexa' AND fill_number = 0
+      AND week BETWEEN 76 AND 99 GROUP BY 1"""))
+did = q("""
+    WITH t AS (SELECT d.territory_id IN (SELECT UNNEST(?)) AS affected, r.week, r.nbrx, r.trx
                FROM weekly_rx r JOIN doctors d USING (doctor_id) WHERE r.brand = 'glyvexa')
-    SELECT heavy,
-           SUM(nbrx) FILTER (WHERE week BETWEEN 91 AND 104) / SUM(nbrx) FILTER (WHERE week BETWEEN 74 AND 87) - 1,
-           SUM(trx)  FILTER (WHERE week BETWEEN 91 AND 104) / SUM(trx)  FILTER (WHERE week BETWEEN 74 AND 87) - 1
+    SELECT affected,
+           SUM(nbrx) FILTER (WHERE week BETWEEN 89 AND 100) / SUM(nbrx) FILTER (WHERE week BETWEEN 76 AND 87) - 1,
+           SUM(trx)  FILTER (WHERE week BETWEEN 89 AND 100) / SUM(trx)  FILTER (WHERE week BETWEEN 76 AND 87) - 1
     FROM t GROUP BY 1 ORDER BY 1 DESC""", heavy)
 calls_change = one("""
-    SELECT COUNT(*) FILTER (WHERE week BETWEEN 91 AND 104) * 1.0 / COUNT(*) FILTER (WHERE week BETWEEN 74 AND 87) - 1
+    SELECT COUNT(*) FILTER (WHERE week BETWEEN 89 AND 100) * 1.0 / COUNT(*) FILTER (WHERE week BETWEEN 76 AND 87) - 1
     FROM calls WHERE channel <> 'email' AND territory_id IN (SELECT UNNEST(?))""", heavy)
-hv, other = nb_change[0], nb_change[1]
+aff, oth = did[0], did[1]
 scen.append(("P1 Formulary shock (Bayou Senior Advantage, week 88)",
-             f"Glyvexa first-fill rejection on the plan {pct(p1d.get('before', 0))} before, {pct(p1d.get('after', 0))} after. "
-             f"In the six affected territories Glyvexa NBRx changed {hv[1] * 100:+.0f}% and TRx {hv[2] * 100:+.0f}% "
-             f"(two weeks after the change against the 14 weeks before), while calls changed {calls_change * 100:+.0f}%. "
-             f"Other territories: NBRx {other[1] * 100:+.0f}%, TRx {other[2] * 100:+.0f}%."))
+             f"Share of new Glyvexa prescriptions on the plan rejected for prior authorisation: "
+             f"{pct(p1.get('before', 0))} in the 12 weeks before, {pct(p1.get('after', 0))} in the 12 weeks after. "
+             f"Glyvexa NBRx, 12 weeks after (89–100) against 12 weeks before (76–87): affected territories "
+             f"{aff[1] * 100:+.0f}%, other territories {oth[1] * 100:+.0f}%, a gap of {(aff[1] - oth[1]) * 100:+.0f} points. "
+             f"TRx in affected territories {aff[2] * 100:+.0f}%; calls there {calls_change * 100:+.0f}%. "
+             f"A synthetic association designed into the data, not evidence of real-world cause."))
 
 p2 = q("""
     WITH c AS (SELECT c.territory_id, d.decile FROM calls c JOIN dec d USING (doctor_id) WHERE c.channel <> 'email')
@@ -170,9 +201,10 @@ p4 = q("""
     FROM doctors d WHERE d.specialty = 'endocrinology' GROUP BY 1 ORDER BY 1 DESC""")
 scen.append(("P4 Restricted cluster", f"No-see share among endocrinologists: metro Atlanta {pct(p4[0][1])}, elsewhere {pct(p4[1][1])}."))
 
-n_lapse = one("SELECT COUNT(*) FROM answer_key_lapses")
-by_cause = q("SELECT cause, COUNT(*) FROM answer_key_lapses GROUP BY 1 ORDER BY 1")
-scen.append(("P5 Lapsing writers", f"{n_lapse} planted lapses: " + ", ".join(f"{c} {n}" for c, n in by_cause) + "."))
+n_lapse = one("SELECT COUNT(*) FROM answer_key_lapses WHERE is_lapse")
+by_cause = q("SELECT cause, COUNT(*) FROM answer_key_lapses GROUP BY 1 ORDER BY ANY_VALUE(is_lapse) DESC, 1")
+scen.append(("P5 Lapsing writers", f"{n_lapse} planted lapses plus decoys that do not lapse: "
+             + ", ".join(f"{c.replace('_', ' ')} {n}" for c, n in by_cause) + "."))
 
 # --- write report
 today = dt.date.today().isoformat()
@@ -188,6 +220,13 @@ lines = [
     "| --- | --- | --- | --- |",
 ]
 lines += [f"| {a} | {b} | {c} | {d} |" for a, b, c, d in rows]
+lines += ["", "## New-prescription funnel", "",
+          "Only the rows from \"Presented at a pharmacy\" down can be seen in claims data; prescriptions never taken "
+          "to a pharmacy leave no claim.", "",
+          "| Stage | Prescriptions | Share of written |", "| --- | --- | --- |"]
+lines += [f"| {a} | {b} | {c} |" for a, b, c in funnel]
+lines += ["", "## Rejected claims by reason (weeks 1–104)", "", "| NCPDP code | Meaning | Claims | Share |", "| --- | --- | --- | --- |"]
+lines += [f"| {c} | {code_label.get(c, '')} | {n:,} | {pct(sh)} |" for c, n, sh in codes]
 lines += ["", "## Planted scenarios", "", "| Scenario | What the data shows |", "| --- | --- |"]
 lines += [f"| {a} | {b} |" for a, b in scen]
 (ROOT / "docs" / "CALIBRATION.md").write_text("\n".join(lines) + "\n")

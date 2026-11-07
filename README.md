@@ -48,4 +48,4 @@ python generator/calibrate.py    # checks the data and rewrites docs/CALIBRATION
 
 ## How data is handled
 
-Public US government data (Medicare Part D, NPPES, CMS formulary files, CDC PLACES) is used only to calibrate **aggregate distributions**. Identifiers are discarded, raw public files are never stored in this repository, and every doctor ID is deliberately invalid so it cannot be mistaken for a real NPI.
+The data is calibrated to **published aggregates and stated assumptions**, listed in the BRD's data provenance register; checking those targets against CMS Part D and NPPES files is planned. The generator never reads a file containing real identifiers, no raw public file is stored in this repository, and every doctor ID is deliberately invalid so it cannot be mistaken for a real NPI. Prescription measures are synthetic paid-claim counts, not licensed audit data, and every finding is an association in synthetic data, not proof of cause.

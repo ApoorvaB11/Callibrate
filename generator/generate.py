@@ -260,8 +260,8 @@ class Generator:
         self.reps = pd.concat([reps, new], ignore_index=True)
         # P2 over-calling territories (not the vacancy territory)
         others = [x for x in t.territory_id if x != self.p3_territory]
-        self.p2_territories = sorted(rng.choice(others, size=sc["p2_over_calling"]["territories"], replace=False))
-        log(f"reps: {len(self.reps)}; P2 territories {self.p2_territories}; P3 vacancy {self.p3_territory}")
+        self.p2_territories = sorted(str(x) for x in rng.choice(others, size=sc["p2_over_calling"]["territories"], replace=False))
+        log(f"reps: {len(self.reps)}; P2 territories {[str(x) for x in self.p2_territories]}; P3 vacancy {self.p3_territory}")
 
     # ----------------------------------------------------------------- call plan
     def build_call_plan(self):
@@ -297,8 +297,18 @@ class Generator:
         causes = rng.choice(list(sc["causes"]), size=n, p=list(sc["causes"].values()))
         lo, hi = sc["lapse_week_range"]
         weeks = rng.integers(lo, hi + 1, size=n)
-        self.lapse = pd.DataFrame(dict(doc_idx=chosen, cause=causes, lapse_week=weeks))
-        log(f"P5: {n} lapsing writers out of {len(active)} expected active writers")
+        lapse = pd.DataFrame(dict(doc_idx=chosen, cause=causes, lapse_week=weeks, is_lapse=True))
+        # decoys: patterns that look like warning signs but do not end in a lapse
+        rest = np.setdiff1d(active, chosen)
+        dec = []
+        for cause, k in sc["decoys"].items():
+            pick = rng.choice(rest, size=k, replace=False)
+            rest = np.setdiff1d(rest, pick)
+            dec.append(pd.DataFrame(dict(doc_idx=pick, cause=cause, lapse_week=rng.integers(lo, hi - 13, size=k),
+                                         is_lapse=False)))
+        self.lapse = pd.concat([lapse] + dec, ignore_index=True)
+        log(f"P5: {n} lapsing writers out of {len(active)} expected active writers, plus "
+            f"{sum(sc['decoys'].values())} decoys")
 
     # --------------------------------------------------------------------- calls
     def build_calls(self):
@@ -310,7 +320,7 @@ class Generator:
         rep_by_t = self.reps.sort_values("start_week")
         v0, v1 = sc["p3_vacancy"]["weeks"]
         gap = {}
-        for r in self.lapse[self.lapse.cause == "call_gap"].itertuples():
+        for r in self.lapse[self.lapse.cause.isin(["call_gap", "decoy_call_gap"])].itertuples():
             gap[r.doc_idx] = (r.lapse_week - 10, r.lapse_week + 4)
 
         rows = []
@@ -448,6 +458,14 @@ class Generator:
         mult = math.log(cfg["scenarios"]["p5_lapsing"]["post_lapse_multiplier"])
         for r in self.lapse.itertuples():
             lw = self.widx(r.lapse_week)
+            if r.cause == "decoy_call_gap":
+                continue  # calls stop for a while, prescribing does not change
+            if r.cause == "decoy_dip":
+                # a temporary dip that recovers after 8 weeks
+                adj[r.doc_idx, lw - 6:lw] = np.linspace(0, mult * 0.7, 6)
+                adj[r.doc_idx, lw:lw + 8] = mult * 0.7
+                adj[r.doc_idx, lw + 8:lw + 14] = np.linspace(mult * 0.7, 0, 6)
+                continue
             if r.cause == "silent":
                 adj[r.doc_idx, lw:] = mult
             else:
@@ -513,6 +531,7 @@ class Generator:
 
         # some prescriptions are never taken to the pharmacy
         filled = rng.random(len(doc)) >= pr["never_filled_share"]
+        wi_all = wi.copy()
         doc, wi, lob, plan_i, brand, affinity_d = doc[filled], wi[filled], lob[filled], plan_i[filled], brand[filled], affinity[doc[filled]]
         npat = len(doc)
         patient = np.arange(npat)
@@ -562,10 +581,37 @@ class Generator:
         jc = pd.Series(jitter).groupby(rows).cumsum().values
         fw = paid_w[rows] + k * pr["fill_interval_weeks"] + jc
         ren = pr["renewal_every_n_fills"]
-        claims.append(pd.DataFrame(dict(patient=rows, doc_idx=doc[rows], wi=fw, brand=paid_brand[rows],
-                                        plan_i=plan_i[rows], fill_number=k % ren, rx_seq=k // ren,
-                                        response_status="P", reject_code="")))
+        paid = pd.DataFrame(dict(patient=rows, doc_idx=doc[rows], wi=fw, brand=paid_brand[rows],
+                                 plan_i=plan_i[rows], fill_number=k % ren, rx_seq=k // ren,
+                                 response_status="P", reject_code=""))
+        claims.append(paid)
+        # background rejections for other reasons, each followed by the paid claim above after resubmission
+        bg = cfg["payers"]["background_rejects"]
+        first = paid[k == 0]
+        refill = paid[k > 0]
+        for part, rates, shift_w in [(first, bg["first_fill"], 0), (refill, bg["refill"], -1)]:
+            u = rng.random(len(part))
+            lo_ = 0.0
+            for code, p in rates.items():
+                m = (u >= lo_) & (u < lo_ + p)
+                lo_ += p
+                rej = part[m].copy()
+                rej["wi"] = np.maximum(rej.wi + shift_w, 0)
+                rej["response_status"] = "R"
+                rej["reject_code"] = str(code)
+                claims.append(rej)
         cl = pd.concat(claims, ignore_index=True)
+        # funnel of new prescriptions written in the reporting weeks (for the calibration report)
+        o = wi >= self.warm
+        self.funnel = dict(
+            written=int((wi_all >= self.warm).sum()),
+            never_presented=int(((wi_all >= self.warm) & ~filled).sum()),
+            presented=int(o.sum()),
+            rejected_pa=int((o & rejected).sum()),
+            approved_after_pa=int((o & (outcome == "approved_later")).sum()),
+            abandoned_after_pa=int((o & (outcome == "abandon")).sum()),
+            switched_after_pa=int((o & (outcome == "switch")).sum()),
+        )
         cl = cl[cl.wi < W]
         cl["week"] = self.sim_weeks[cl.wi.values]
         self.patient_outcome = pd.DataFrame(dict(patient=patient, doc_idx=doc, wi=wi, brand=brand, lob=lob,
@@ -587,7 +633,7 @@ class Generator:
         out = pd.DataFrame(dict(
             week=cl.week.values,
             patient_id=["PT" + format(int(p), "07d") for p in cl.patient.values],
-            prescriber_id=d.doctor_id.values[cl.doc_idx.values],
+            synthetic_prescriber_id=d.doctor_id.values[cl.doc_idx.values],
             brand=brand_names[cl.brand.values],
             plan_id=plan_ids[cl.plan_i.values],
             fill_number=cl.fill_number.values,
@@ -608,7 +654,7 @@ class Generator:
         out["formulary_status"] = np.array(self.status_names)[st]
         out = out.sort_values(["service_date", "patient_id"]).reset_index(drop=True)
         out["claim_id"] = ["CL" + format(i + 1, "08d") for i in range(len(out))]
-        self.claims = out[["claim_id", "service_date", "week", "patient_id", "prescriber_id", "brand", "ndc11",
+        self.claims = out[["claim_id", "service_date", "week", "patient_id", "synthetic_prescriber_id", "brand", "ndc11",
                            "rx_number", "fill_number", "days_supply", "quantity", "plan_id", "line_of_business",
                            "formulary_status", "response_status", "reject_code", "pharmacy_channel"]]
 
@@ -624,7 +670,7 @@ class Generator:
 
         lp = self.lapse.copy()
         lp["doctor_id"] = d.doctor_id.values[lp.doc_idx]
-        self.answer_lapses = lp[["doctor_id", "cause", "lapse_week"]].sort_values("lapse_week")
+        self.answer_lapses = lp[["doctor_id", "cause", "lapse_week", "is_lapse"]].sort_values("lapse_week")
 
     # ------------------------------------------------------------------ write
     def write(self):
@@ -661,7 +707,7 @@ class Generator:
                 SELECT *, LAG(week) OVER (PARTITION BY patient_id, brand ORDER BY service_date, claim_id) AS prev_week
                 FROM pharmacy_claims WHERE response_status = 'P'
             )
-            SELECT prescriber_id AS doctor_id, brand, week,
+            SELECT synthetic_prescriber_id AS doctor_id, brand, week,
                    COUNT(*) AS trx,
                    COUNT(*) FILTER (WHERE fill_number = 0) AS nrx,
                    COUNT(*) FILTER (WHERE prev_week IS NULL OR week - prev_week > 52) AS nbrx
@@ -672,6 +718,10 @@ class Generator:
             ('P2', 'territories', ?), ('P3', 'territory', ?), ('P3', 'weeks', '40-47'),
             ('P4', 'area', 'Fulton, DeKalb, Cobb and Gwinnett counties, GA')) t(scenario, fact, value)""",
                     [", ".join(self.p1_heavy), ", ".join(self.p2_territories), self.p3_territory])
+        fn = pd.DataFrame([dict(stage=k, prescriptions=v) for k, v in self.funnel.items()])
+        con.register("tmp_df", fn)
+        con.execute("CREATE TABLE generation_funnel AS SELECT * FROM tmp_df")
+        con.unregister("tmp_df")
         sizes = {t: con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in list(tables) + ["weekly_rx"]}
         con.close()
         for t, s in sizes.items():

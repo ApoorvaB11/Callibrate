@@ -29,7 +29,7 @@ specialties:
 prescribing:
   mean_new_starts_per_doctor_week: 0.30   # market-wide new GLP-1 patients per prescribing doctor per week
   volume_spread_sigma: 0.50               # lognormal spread of practice volume (drives decile skew)
-  never_filled_share: 0.22                # new prescriptions never taken to the pharmacy
+  never_filled_share: 0.25                # new prescriptions never taken to the pharmacy (no claim exists)
   fill_interval_weeks: 4                  # 28-day supply
   renewal_every_n_fills: 12               # a new prescription number roughly yearly
   refill_dropout_per_fill:                # chance a patient stops after each fill
@@ -92,6 +92,10 @@ payers:
     - {plan_id: "PL05", name: "Harborview Health",        lob: commercial, region: all,       weight: 0.45}
     - {plan_id: "PL06", name: "Coastal Medicaid Plan",    lob: medicaid,   region: southeast, weight: 1.0}
     - {plan_id: "PL07", name: "Delta Medicaid Plan",      lob: medicaid,   region: gulf,      weight: 1.0}
+  # Rejections for other reasons, resolved by a paid resubmission (NCPDP reject codes)
+  background_rejects:
+    first_fill: {"76": 0.020, "65": 0.010}   # 76 plan limitations exceeded; 65 patient not covered
+    refill:     {"79": 0.015, "76": 0.005}   # 79 refill too soon
   # First-fill rejection probability and what happens after a rejection, by formulary status
   status_rules:
     preferred:         {reject: 0.00, approved_later: 0.00, abandon: 0.00, switch: 0.00}
@@ -119,4 +123,5 @@ scenarios:
     share_of_active_writers: 0.08
     lapse_week_range: [40, 96]
     causes: {competitor_push: 0.40, call_gap: 0.30, silent: 0.30}
+    decoys: {decoy_call_gap: 15, decoy_dip: 15}   # warning-sign patterns that do not end in a lapse
     post_lapse_multiplier: 0.30
