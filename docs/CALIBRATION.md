@@ -1,6 +1,6 @@
 # Callibrate — calibration report
 
-Generated 2026-11-07 by `generator/calibrate.py` from seed 20261107. Checks with a target of ±2 percentage points show Pass or Fail; the rest are reported for review.
+Generated 2026-11-10 by `generator/calibrate.py` from seed 20261107. Checks with a target of ±2 percentage points show Pass or Fail; the rest are reported for review.
 
 ## Calibration checks
 
@@ -53,7 +53,7 @@ Only the rows from "Presented at a pharmacy" down can be seen in claims data; pr
 
 | Scenario | What the data shows |
 | --- | --- |
-| P1 Formulary shock (Bayou Senior Advantage, week 88) | Share of new Glyvexa prescriptions on the plan rejected for prior authorisation: 0.0% in the 12 weeks before, 41.8% in the 12 weeks after. Glyvexa NBRx, 12 weeks after (89–100) against 12 weeks before (76–87): affected territories -21%, other territories -1%, a gap of -20 points. TRx in affected territories +3%; calls there -2%. A synthetic association designed into the data, not evidence of real-world cause. |
+| P1 Formulary shock (Bayou Senior Advantage, week 88) | Share of Glyvexa first-fill claims on the plan rejected for prior authorisation (FRD M-13): 0.0% in the 12 weeks before, 63.9% in the 12 weeks after. Glyvexa NBRx, 12 weeks after (89–100) against 12 weeks before (76–87): affected territories -21%, other territories -1%, a gap of -20 points. By region: Gulf, where the plan operates, -17%; Southeast +5%. TRx in affected territories +3%; calls there -2%. A synthetic association designed into the data, not evidence of real-world cause. |
 | P2 Over-calling | Planted territories AL_MS-03, FL_NORTH-01, GEORGIA-08. Highest low-potential call share: FL_NORTH-01 52.0%; GEORGIA-08 51.0%; AL_MS-03 50.8%; FL_NORTH-03 41.8%; FL_NORTH-06 41.4%. The three planted territories rank top three. |
 | P3 Vacancy | FL_NORTH-04: share of decile 8–10 targets seen in weeks 32–39 80.8%, in the vacancy weeks 40–47 0.0%. |
 | P4 Restricted cluster | No-see share among endocrinologists: metro Atlanta 91.7%, elsewhere 7.7%. |

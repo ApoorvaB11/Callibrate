@@ -25,6 +25,8 @@ The setting is a fictional once-weekly GLP-1-class brand for type 2 diabetes in 
 | [Data specification](docs/DATA_SPEC.md) | What the synthetic data contains and how it is generated |
 | [Planted scenario answer key](docs/ANSWER_KEY.md) | The five patterns hidden in the data, and where to find them |
 | [Calibration report](docs/CALIBRATION.md) | How close the data lands to its targets, regenerated with every build |
+| [SQL metric layer](sql/README.md) | One readable SQL file per metric group, with what each calculates |
+| [Metric checks](docs/METRICS_CHECK.md) | Reconciliation checks, acceptance tests and headline numbers, regenerated with every build |
 
 ## Build progress
 
@@ -33,17 +35,18 @@ The setting is a fictional once-weekly GLP-1-class brand for type 2 diabetes in 
 - [x] Functional Requirements Document
 - [x] Synthetic data specification and planted-scenario answer key
 - [x] Data generator, calibration checks and report
-- [ ] SQL metric layer and reconciliation checks
+- [x] SQL metric layer, reconciliation checks and data-level acceptance tests (20 of 20 pass)
 - [ ] App screens (8)
 - [ ] Priority score and lapsing model
 - [ ] Limitations page, demo script and deployment
 
-## Rebuild the data
+## Rebuild the data and metrics
 
 ```bash
 pip install duckdb numpy pandas pyyaml scikit-learn faker zipcodes
 python generator/generate.py     # about 30 seconds; writes data/callibrate.duckdb
 python generator/calibrate.py    # checks the data and rewrites docs/CALIBRATION.md
+python sql/build.py              # builds the metric layer, runs every check, rewrites docs/METRICS_CHECK.md
 ```
 
 ## How data is handled

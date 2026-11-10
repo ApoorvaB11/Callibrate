@@ -81,8 +81,8 @@ Each screen has 3–5 requirements; metric codes (M-xx) point to the formulas in
 | --- | --- |
 | FR-20 | Show, per decile, the number of doctors, their share of market TRx and their share of brand calls, so the gap between value and effort is visible. |
 | FR-21 | Show a potential-by-penetration matrix: market decile bands (1–4, 5–7, 8–10) against brand share bands (low, medium, high). Each cell shows doctor count and share of calls; clicking a cell lists its doctors. |
-| FR-22 | Show the misallocation quadrant: under-called high-potential doctors (decile 8–10 with fewer calls than planned, including none) and over-called low-potential doctors (decile 1–4 called more than their segment plan, or called while not targeted). Each list shows count, share of calls and the doctors. |
-| FR-23 | Show the share of total calls landing on decile 1–4 doctors (M-12) as a headline number. |
+| FR-22 | Show the misallocation quadrant: under-called high-potential doctors (decile 8–10 with fewer calls than planned, including none) and over-called low-potential doctors (decile 0–4 called more than their segment plan, or called while not targeted). Each list shows count, share of calls and the doctors. |
+| FR-23 | Show the share of total calls landing on decile 0–4 doctors (M-12) as a headline number. |
 
 ### S3 Coverage
 
@@ -124,11 +124,11 @@ Each screen has 3–5 requirements; metric codes (M-xx) point to the formulas in
 
 | ID | Requirement |
 | --- | --- |
-| FR-70 | Show a territory scatter of change in calls against change in NBRx between two periods; highlight the high-effort, falling-outcome quadrant. |
+| FR-70 | Show a territory scatter of change in calls against change in NBRx between two periods; highlight the effort-held, outcome-fell quadrant (calls down less than 10%, NBRx down 10% or more). Single territories vary by about ±8% from noise alone, so the screen also shows the district and region roll-up. |
 | FR-71 | Provide a drill path: region, then territory, then plan mix, then claim outcomes. At claim level show weekly paid and rejected first fills for Glyvexa by plan and reject code, with formulary status changes marked on the timeline. |
 | FR-72 | Show NBRx share by brand for the selected area, before and after a chosen week, to reveal switching to competitors. |
 | FR-73 | Show a before/after comparison of the selected (affected) territories against all other territories, with equal 12-week windows either side of the chosen week, and the gap between the two changes. |
-| FR-74 | Show an analyst action panel: the evidence found (for example "first-fill rejections on one plan rose from 0% to 42%; NBRx fell 21% in its territories against 1% elsewhere; calls were flat") and the next investigation to make ("check prior authorisation approval rates, abandonment and switching on this plan before changing the call plan"). The panel suggests investigations, not sales actions. |
+| FR-74 | Show an analyst action panel: the evidence found (for example "prior-authorisation rejections of Glyvexa first fills on one plan rose from 0% to 64%; Glyvexa NBRx fell 17% in the Gulf region against a 5% rise in the Southeast; calls were flat") and the next investigation to make ("check prior authorisation approval rates, abandonment and switching on this plan before changing the call plan"). The panel suggests investigations, not sales actions. |
 
 ### S8 Data and definitions
 
@@ -280,7 +280,7 @@ Every business requirement maps to at least one functional requirement and one a
 | BR-06 Misallocation | FR-22, FR-23 | AT-06: the three P2 territories rank highest on low-potential call share |
 | BR-07 Access tiers | FR-30, FR-32 | AT-07: the P4 metro area shows low in-person reach (M-16) but higher omnichannel reach (M-17) |
 | BR-08 Planted story | FR-71 to FR-74, FR-95 | AT-08: starting from the S1 alert, a first-time user reaches the P1 cause in five clicks or fewer |
-| BR-09 Activity against outcome | FR-12, FR-70 | AT-09: the P1 territories fall in the high-effort, falling-outcome quadrant |
+| BR-09 Activity against outcome | FR-12, FR-70, FR-73 | AT-09: after the P1 change, Gulf NBRx falls at least 10 points more than the Southeast while Gulf calls stay within ±5%, and most Gulf territories sit in the effort-held, outcome-fell quadrant |
 | BR-10 Priority score | FR-50 to FR-55 | AT-10: the top 50 doctors each show three reasons; a slider change re-ranks in under 2 seconds and updates the sensitivity view; weights always total 100%; access tier never lowers the score |
 | BR-11 Lapsing flag | FR-60 to FR-63 | AT-11: rolling back-test results show for rule and model across three folds, with PR-AUC and top-10% precision; no feature uses data after its prediction week; outputs carry the synthetic label |
 | BR-12 Realistic data | FR-90, FR-91, FR-92 | AT-12: the calibration report shows every target within 2 percentage points |

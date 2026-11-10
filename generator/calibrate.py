@@ -151,10 +151,10 @@ facts = dict(((s, f), v) for s, f, v in q("SELECT * FROM scenario_facts"))
 heavy = facts[("P1", "heavy_territories")].split(", ")
 scen = []
 p1 = dict(q("""
-    SELECT CASE WHEN week < 88 THEN 'before' ELSE 'after' END,
+    SELECT CASE WHEN week < 88 THEN 'before' ELSE 'after' END AS period,
            COUNT(*) FILTER (WHERE reject_code = '75') * 1.0 / COUNT(*)
     FROM pharmacy_claims WHERE plan_id = 'PL03' AND brand = 'glyvexa' AND fill_number = 0
-      AND week BETWEEN 76 AND 99 GROUP BY 1"""))
+      AND right(rx_number, 2) = '00' AND week BETWEEN 76 AND 100 AND week <> 88 GROUP BY 1"""))
 did = q("""
     WITH t AS (SELECT d.territory_id IN (SELECT UNNEST(?)) AS affected, r.week, r.nbrx, r.trx
                FROM weekly_rx r JOIN doctors d USING (doctor_id) WHERE r.brand = 'glyvexa')
@@ -166,11 +166,15 @@ calls_change = one("""
     SELECT COUNT(*) FILTER (WHERE week BETWEEN 89 AND 100) * 1.0 / COUNT(*) FILTER (WHERE week BETWEEN 76 AND 87) - 1
     FROM calls WHERE channel <> 'email' AND territory_id IN (SELECT UNNEST(?))""", heavy)
 aff, oth = did[0], did[1]
+reg = dict(q("""
+    SELECT d.region, SUM(r.nbrx) FILTER (WHERE r.week BETWEEN 89 AND 100) / SUM(r.nbrx) FILTER (WHERE r.week BETWEEN 76 AND 87) - 1
+    FROM weekly_rx r JOIN doctors d USING (doctor_id) WHERE r.brand = 'glyvexa' GROUP BY 1"""))
 scen.append(("P1 Formulary shock (Bayou Senior Advantage, week 88)",
-             f"Share of new Glyvexa prescriptions on the plan rejected for prior authorisation: "
+             f"Share of Glyvexa first-fill claims on the plan rejected for prior authorisation (FRD M-13): "
              f"{pct(p1.get('before', 0))} in the 12 weeks before, {pct(p1.get('after', 0))} in the 12 weeks after. "
              f"Glyvexa NBRx, 12 weeks after (89–100) against 12 weeks before (76–87): affected territories "
              f"{aff[1] * 100:+.0f}%, other territories {oth[1] * 100:+.0f}%, a gap of {(aff[1] - oth[1]) * 100:+.0f} points. "
+             f"By region: Gulf, where the plan operates, {reg['gulf'] * 100:+.0f}%; Southeast {reg['southeast'] * 100:+.0f}%. "
              f"TRx in affected territories {aff[2] * 100:+.0f}%; calls there {calls_change * 100:+.0f}%. "
              f"A synthetic association designed into the data, not evidence of real-world cause."))
 
